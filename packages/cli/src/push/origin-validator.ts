@@ -16,7 +16,18 @@ export interface OriginValidationResult {
  * @param headers HTTP request headers
  * @returns Validation result with details about the origin check
  */
-export function validateOriginHeaders(headers: Request['headers']): OriginValidationResult {
+export function validateOriginHeaders(
+	headers: Request['headers'],
+	fallbackHost?: string,
+	fallbackProtocol?: 'http' | 'https',
+): OriginValidationResult {
+	// If Origin header is completely absent, skip origin validation.
+	// Handles reverse proxies (e.g. Render, Railway) that strip the Origin header
+	// on WebSocket upgrade requests. Auth is still enforced by the auth middleware.
+	if (headers.origin === undefined) {
+		return { isValid: true };
+	}
+
 	// Parse and normalize the origin using native URL class
 	const originInfo = parseOrigin(headers.origin ?? '');
 
@@ -58,6 +69,14 @@ export function validateOriginHeaders(headers: Request['headers']): OriginValida
 		// 3. Fallback to Host header
 		else {
 			rawExpectedHost = headers.host;
+		}
+	}
+
+	// 4. Fallback to configured host (e.g. from N8N_HOST) when proxy strips all host headers
+	if (!rawExpectedHost && fallbackHost) {
+		rawExpectedHost = fallbackHost;
+		if (fallbackProtocol) {
+			expectedProtocol = fallbackProtocol;
 		}
 	}
 

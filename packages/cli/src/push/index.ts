@@ -7,6 +7,7 @@ import type { Application } from 'express';
 import { ServerResponse } from 'http';
 import type { Server } from 'http';
 import pick from 'lodash/pick';
+import { GlobalConfig } from '@n8n/config';
 import { InstanceSettings } from 'n8n-core';
 import { parse as parseUrl } from 'url';
 import { Server as WSServer } from 'ws';
@@ -60,6 +61,7 @@ export class Push extends TypedEmitter<PushEvents> {
 		private readonly logger: Logger,
 		private readonly authService: AuthService,
 		private readonly publisher: Publisher,
+		private readonly globalConfig: GlobalConfig,
 	) {
 		super();
 		this.logger = this.logger.scoped('push');
@@ -126,7 +128,11 @@ export class Push extends TypedEmitter<PushEvents> {
 		if (!pushRef) {
 			connectionError = 'The query parameter "pushRef" is missing!';
 		} else if (inProduction) {
-			const validation = validateOriginHeaders(headers);
+			const validation = validateOriginHeaders(
+				headers,
+				this.globalConfig.host,
+				this.globalConfig.protocol,
+			);
 			if (!validation.isValid) {
 				this.logger.warn(
 					'Origin header does NOT match the expected origin. ' +
